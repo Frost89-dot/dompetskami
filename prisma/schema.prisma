@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "libsql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-  relationMode = "prisma"
 }
 
 model User {
