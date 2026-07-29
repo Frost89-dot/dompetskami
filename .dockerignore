@@ -1,0 +1,12 @@
+node_modules
+.next
+dev.log
+server.log
+test123.txt
+upload/
+examples/
+tests/
+*.db-wal
+*.db-shm
+.git
+.vscode

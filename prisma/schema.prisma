@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "libsql"
+  url      = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  nama      String
+  email     String   @unique
+  role      String   @default("co-admin") // admin / co-admin
+  warnaTema String   @default("#2563EB")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  transaksi     Transaksi[]
+  anggaran      Anggaran[]
+  memo          Memo[]
+  target        Target[]
+
+  @@map("users")
+}
+
+model Aset {
+  id             String  @id @default(cuid()) @map("aset_id")
+  namaAset       String  @map("nama_aset")
+  jenisGrup      String  @map("jenis_grup") // Kas, Akun, Kartu Kredit, Tabungan, Top-up/Prabayar, Investasi, Pinjaman, Asuransi
+  pemilik        String  @default("Bersama") // Suami, Istri, Bersama
+  visibilitas    String  @default("Bersama") // Bersama, Privat
+  saldoAwal      Float   @default(0) @map("saldo_awal")
+  saldoBerjalan  Float   @default(0) @map("saldo_berjalan")
+  mataUang       String  @default("IDR") @map("mata_uang")
+  statusAktif    Boolean @default(true) @map("status_aktif")
+  icon           String  @default("💰")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  transaksiDari   Transaksi[] @relation("TransaksiDari")
+  transaksiTujuan Transaksi[] @relation("TransaksiTujuan")
+  target          Target[]
+
+  @@map("aset")
+}
+
+model Kategori {
+  id              String   @id @default(cuid()) @map("kategori_id")
+  namaKategori    String   @map("nama_kategori")
+  tipe            String   @default("Pengeluaran") // Pemasukan, Pengeluaran
+  parentKategoriId String?  @map("parent_kategori_id")
+  icon            String   @default("📁")
+  warna           String   @default("#6B7280")
+  isDefault       Boolean  @default(true) @map("is_default")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  transaksi Transaksi[]
+  anggaran  Anggaran[]
+  children  Kategori[]  @relation("SubKategori")
+  parent    Kategori?  @relation("SubKategori", fields: [parentKategoriId], references: [id])
+
+  @@map("kategori")
+}
+
+model Transaksi {
+  id             String   @id @default(cuid()) @map("transaksi_id")
+  tanggalWaktu   DateTime @map("tanggal_waktu")
+  tipe           String   @default("Pengeluaran") // Pemasukan, Pengeluaran, Transfer
+  asetId         String   @map("aset_id")
+  asetTujuanId   String?  @map("aset_tujuan_id")
+  kategoriId     String?  @map("kategori_id")
+  nominal        Float
+  deskripsi      String
+  catatan        String?  @default("")
+  lampiranUrl    String?  @map("lampiran_url")
+  sumberInput    String   @default("Manual") @map("sumber_input") // Manual, AI
+  statusReview   String   @default("Terverifikasi") @map("status_review") // Terverifikasi, Perlu Review
+  isBookmark     Boolean  @default(false) @map("is_bookmark")
+  isAdjustment   Boolean  @default(false) @map("is_adjustment")
+  dicatatOleh    String   @map("dicatat_oleh")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  aset       Aset     @relation("TransaksiDari", fields: [asetId], references: [id])
+  asetTujuan Aset?   @relation("TransaksiTujuan", fields: [asetTujuanId], references: [id])
+  kategori   Kategori? @relation(fields: [kategoriId], references: [id])
+  user       User     @relation(fields: [dicatatOleh], references: [id])
+
+  @@map("transaksi")
+}
+
+model Target {
+  id               String   @id @default(cuid()) @map("target_id")
+  namaTarget       String   @map("nama_target")
+  jenisTarget      String   @default("Tabungan") @map("jenis_target")
+  nominalTarget    Float    @map("nominal_target")
+  nominalTerkumpul Float    @default(0) @map("nominal_terkumpul")
+  asetTerkaitId    String?  @map("aset_terkait_id")
+  tanggalMulai     DateTime @map("tanggal_mulai")
+  tanggalTarget    DateTime @map("tanggal_target")
+  pemilik          String   @default("Bersama")
+  status           String   @default("Aktif") // Aktif, Tercapai, Dibatalkan
+  userId           String   @map("user_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user           User   @relation(fields: [userId], references: [id])
+  aset           Aset?  @relation(fields: [asetTerkaitId], references: [id])
+
+  @@map("target")
+}
+
+model Anggaran {
+  id               String @id @default(cuid()) @map("anggaran_id")
+  periode          String @map("periode") // YYYY-MM
+  kategoriId       String @map("kategori_id")
+  nominalAnggaran  Float  @map("nominal_anggaran")
+  nominalTerpakai  Float  @default(0) @map("nominal_terpakai")
+  dibuatOleh       String @map("dibuat_oleh")
+  status           String @default("Aktif") // Aktif, Ditutup
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  kategori Kategori @relation(fields: [kategoriId], references: [id])
+  user     User     @relation(fields: [dibuatOleh], references: [id])
+
+  @@map("anggaran")
+}
+
+model Memo {
+  id        String   @id @default(cuid()) @map("memo_id")
+  judul     String
+  isi       String   @default("")
+  tag       String   @default("")
+  pinned    Boolean  @default(false)
+  dibuatOleh String   @map("dibuat_oleh")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [dibuatOleh], references: [id])
+
+  @@map("memo")
+}
+
+model AiLog {
+  id             String   @id @default(cuid()) @map("log_id")
+  timestamp      DateTime @default(now())
+  jenisProses    String   @map("jenis_proses") // scan_struk, insight, kategorisasi
+  inputRingkas   String?  @map("input_ringkas")
+  outputJson     String?  @map("output_json")
+  confidenceScore Float?  @map("confidence_score")
+  status         String   @default("success") // success, failed, review
+
+  @@map("ai_log")
+}
