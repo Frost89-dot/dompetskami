@@ -1,13 +1,22 @@
 import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 
 export async function GET() {
-  const dbUrl = process.env.DATABASE_URL || 'NOT SET'
-  const token = process.env.TURSO_AUTH_TOKEN ? 'SET' : 'NOT SET'
-  const nodeEnv = process.env.NODE_ENV || 'NOT SET'
-
-  return NextResponse.json({
-    database_url: dbUrl.startsWith('libsql') ? 'OK (libsql)' : dbUrl,
-    turso_token: token,
-    node_env: nodeEnv,
-  })
+  try {
+    // Test connection
+    const kategori = await db.kategori.findMany()
+    const aset = await db.aset.findMany()
+    return NextResponse.json({
+      status: 'OK',
+      kategori_count: kategori.length,
+      aset_count: aset.length,
+    })
+  } catch (err: any) {
+    return NextResponse.json({
+      status: 'ERROR',
+      message: err.message,
+      code: err.code,
+      meta: err.meta,
+    }, { status: 500 })
+  }
 }
