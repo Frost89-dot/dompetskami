@@ -22,7 +22,7 @@ export function BottomNav() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all duration-200 min-w-[64px] ${
+              className={`relative flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all duration-200 min-w-[64px] ${
                 isActive
                   ? 'text-blue-600'
                   : 'text-gray-400 hover:text-gray-600'
@@ -33,7 +33,7 @@ export function BottomNav() {
                 {tab.label}
               </span>
               {isActive && (
-                <div className="absolute bottom-1 w-1 h-1 rounded-full bg-blue-600" />
+                <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full bg-blue-600" />
               )}
             </button>
           )
