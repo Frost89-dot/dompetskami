@@ -4,11 +4,11 @@ import { useEffect, useState, useCallback } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { TrendingUp, TrendingDown, Target, ArrowRight, Sparkles, Bookmark, Wallet } from 'lucide-react'
-import { formatRupiah, formatDateShort, formatTime, OWNER_BG_COLORS, getPercentage } from '@/lib/format'
+import { TrendingUp, TrendingDown, Target, ArrowRight, Sparkles, Bookmark, Wallet, Loader2 } from 'lucide-react'
+import { formatRupiah, formatDateShort, getPercentage } from '@/lib/format'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { useToast } from '@/hooks/use-toast'
 
 interface DashboardData {
   netWorth: number
@@ -23,6 +23,7 @@ interface DashboardData {
 
 export function TabBeranda() {
   const { periode, setActiveTab, setTxView } = useAppStore()
+  const { toast } = useToast()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [insight, setInsight] = useState<string | null>(null)
@@ -32,28 +33,43 @@ export function TabBeranda() {
     setLoading(true)
     try {
       const res = await fetch('/api/dashboard')
+      if (!res.ok) throw new Error('Failed to fetch dashboard data')
       const json = await res.json()
       setData(json)
     } catch (e) {
-      console.error(e)
+      console.error('Error loading dashboard:', e)
+      toast({
+        title: 'Gagal memuat data',
+        description: 'Silakan coba lagi nanti',
+        variant: 'destructive'
+      })
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
-  }, [])
+  }, [toast])
 
   const loadInsight = useCallback(async () => {
     setInsightLoading(true)
     try {
       const res = await fetch('/api/ai/insight')
+      if (!res.ok) throw new Error('Failed to fetch insight')
       const json = await res.json()
       setInsight(json.insight)
-    } catch {
+    } catch (e) {
+      console.error('Error loading insight:', e)
       setInsight('Insight tidak tersedia saat ini.')
+      toast({
+        title: 'Gagal memuat insight',
+        description: 'AI insight tidak tersedia',
+        variant: 'default'
+      })
+    } finally {
+      setInsightLoading(false)
     }
-    setInsightLoading(false)
-  }, [])
+  }, [toast])
 
   useEffect(() => {
-    loadData().catch(() => {})
+    loadData()
   }, [periode, loadData])
 
   const incomeChange = data?.lastIncome ? getPercentage(data.income - data.lastIncome, data.lastIncome) : 0
@@ -65,6 +81,7 @@ export function TabBeranda() {
         <Skeleton className="h-36 w-full rounded-2xl" />
         <Skeleton className="h-28 w-full rounded-2xl" />
         <Skeleton className="h-36 w-full rounded-2xl" />
+        <Skeleton className="h-48 w-full rounded-2xl" />
       </div>
     )
   }
@@ -84,6 +101,7 @@ export function TabBeranda() {
             <button
               onClick={() => setActiveTab('transaksi')}
               className="text-xs text-blue-600 font-medium flex items-center gap-0.5 bg-blue-50 px-3 py-1.5 rounded-full"
+              aria-label="Lihat semua transaksi"
             >
               Lihat Semua <ArrowRight className="w-3 h-3" />
             </button>
@@ -102,6 +120,7 @@ export function TabBeranda() {
                 <button
                   onClick={() => setActiveTab('transaksi')}
                   className="text-xs text-blue-100 font-medium flex items-center gap-1 bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg transition-colors"
+                  aria-label="Lihat transaksi"
                 >
                   Lihat Transaksi <ArrowRight className="w-3 h-3" />
                 </button>
@@ -166,13 +185,23 @@ export function TabBeranda() {
             <CardContent className="p-4 md:p-5">
               <button
                 onClick={loadInsight}
-                className="flex items-center justify-between w-full"
+                disabled={insightLoading}
+                className="flex items-center justify-between w-full disabled:opacity-70"
+                aria-label={insight ? 'Refresh insight AI' : 'Lihat insight AI'}
               >
                 <div className="flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-amber-500" />
                   <p className="text-xs font-semibold text-gray-700">Insight AI</p>
                 </div>
-                <span className="text-xs text-blue-600 font-medium">{insight ? 'Refresh' : 'Lihat Insight'}</span>
+                <span className="text-xs text-blue-600 font-medium">
+                  {insightLoading ? (
+                    <Loader2 className="w-3 h-3 animate-spin inline" />
+                  ) : insight ? (
+                    'Refresh'
+                  ) : (
+                    'Lihat Insight'
+                  )}
+                </span>
               </button>
               {insightLoading && (
                 <div className="mt-3 space-y-2">
@@ -186,14 +215,19 @@ export function TabBeranda() {
                   {insight}
                 </div>
               )}
+              {!insight && !insightLoading && (
+                <div className="mt-3 text-xs text-gray-400 text-center py-2">
+                  Klik untuk melihat insight AI tentang keuanganmu
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
         {/* Targets + Budgets side by side on desktop */}
-        {(data.targets.length > 0 || data.budgets.length > 0) && (
+        {((data.targets && data.targets.length > 0) || (data.budgets && data.budgets.length > 0)) && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {data.targets.length > 0 && (
+            {data.targets && data.targets.length > 0 && (
               <Card className="border-0 shadow-sm rounded-2xl">
                 <CardContent className="p-4 md:p-5">
                   <div className="flex items-center justify-between mb-3">
@@ -224,7 +258,7 @@ export function TabBeranda() {
               </Card>
             )}
 
-            {data.budgets.length > 0 && (
+            {data.budgets && data.budgets.length > 0 && (
               <Card className="border-0 shadow-sm rounded-2xl">
                 <CardContent className="p-4 md:p-5">
                   <div className="flex items-center justify-between mb-3">
@@ -241,8 +275,12 @@ export function TabBeranda() {
                       return (
                         <div key={b.id}>
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-medium text-gray-700">{b.kategori?.icon} {b.kategori?.namaKategori}</span>
-                            <span className={`text-[10px] font-medium ${overBudget ? 'text-red-500' : 'text-gray-400'}`}>{pct}%</span>
+                            <span className="text-xs font-medium text-gray-700">
+                              {b.kategori?.icon} {b.kategori?.namaKategori || 'Tidak ada kategori'}
+                            </span>
+                            <span className={`text-[10px] font-medium ${overBudget ? 'text-red-500' : 'text-gray-400'}`}>
+                              {pct}%
+                            </span>
                           </div>
                           <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <div
@@ -272,36 +310,43 @@ export function TabBeranda() {
               <button
                 onClick={() => { setActiveTab('transaksi'); setTxView('daily') }}
                 className="text-xs text-blue-600 font-medium hover:text-blue-700"
+                aria-label="Lihat semua transaksi"
               >
                 Semua
               </button>
             </div>
-            <div className="space-y-0.5">
-              {data.recentTransactions.map((tx: any) => (
-                <div
-                  key={tx.id}
-                  className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-base flex-shrink-0">
-                    {tx.kategori?.icon || '📦'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{tx.deskripsi}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-xs text-gray-400">{formatDateShort(tx.tanggalWaktu)}</span>
-                      <span className="text-xs text-gray-300">·</span>
-                      <span className="text-xs text-gray-400">{tx.aset?.namaAset}</span>
+            {data.recentTransactions && data.recentTransactions.length > 0 ? (
+              <div className="space-y-0.5">
+                {data.recentTransactions.map((tx: any) => (
+                  <div
+                    key={tx.id}
+                    className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-base flex-shrink-0">
+                      {tx.kategori?.icon || '📦'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{tx.deskripsi || 'Tanpa deskripsi'}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-xs text-gray-400">{formatDateShort(tx.tanggalWaktu)}</span>
+                        <span className="text-xs text-gray-300">·</span>
+                        <span className="text-xs text-gray-400">{tx.aset?.namaAset || 'Tidak diketahui'}</span>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0 flex items-center gap-1.5">
+                      {tx.isBookmark && <Bookmark className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />}
+                      <span className={`text-sm font-semibold ${tx.tipe === 'Pemasukan' ? 'text-emerald-600' : 'text-gray-900'}`}>
+                        {tx.tipe === 'Pemasukan' ? '+' : '-'}{formatRupiah(tx.nominal)}
+                      </span>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0 flex items-center gap-1.5">
-                    {tx.isBookmark && <Bookmark className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />}
-                    <span className={`text-sm font-semibold ${tx.tipe === 'Pemasukan' ? 'text-emerald-600' : 'text-gray-900'}`}>
-                      {tx.tipe === 'Pemasukan' ? '+' : '-'}{formatRupiah(tx.nominal)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-gray-400 text-sm">
+                Belum ada transaksi
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
