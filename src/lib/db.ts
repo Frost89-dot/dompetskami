@@ -8,7 +8,7 @@ const globalForPrisma = globalThis as unknown as {
 
 function createPrismaClient() {
   // ✅ Pakai TURSO_DATABASE_URL sebagai primary, DATABASE_URL sebagai fallback
-  const dbUrl = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL || ''
+  const dbUrl = process.env.DATABASE_URL || process.env.DATABASE_URL || ''
 
   if (!dbUrl) {
     throw new Error('Database URL is not defined. Set TURSO_DATABASE_URL or DATABASE_URL.')
