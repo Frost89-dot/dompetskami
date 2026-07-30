@@ -7,12 +7,7 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 function createPrismaClient() {
-  // ✅ Pakai TURSO_DATABASE_URL sebagai primary, DATABASE_URL sebagai fallback
-  const dbUrl = process.env.DATABASE_URL || process.env.DATABASE_URL || ''
-
-  if (!dbUrl) {
-    throw new Error('Database URL is not defined. Set TURSO_DATABASE_URL or DATABASE_URL.')
-  }
+  const dbUrl = process.env.DATABASE_URL || ''
 
   if (dbUrl.startsWith('libsql://')) {
     const libsql: Client = createClient({
@@ -23,9 +18,11 @@ function createPrismaClient() {
     return new PrismaClient({ adapter })
   }
 
-  return new PrismaClient({ datasourceUrl: dbUrl })
+  return new PrismaClient()
 }
 
-export const db = globalForPrisma.prisma ?? createPrismaClient()
+export const db =
+  globalForPrisma.prisma ??
+  createPrismaClient()
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
