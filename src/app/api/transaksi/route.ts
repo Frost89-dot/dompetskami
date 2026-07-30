@@ -23,17 +23,15 @@ export async function GET(req: NextRequest) {
     if (pemilik) baseWhere.dicatatOleh = pemilik
     if (search) baseWhere.deskripsi = { contains: search }
 
-    // Bookmark view
     if (view === 'bookmark') {
       const txs = await db.transaksi.findMany({
         where: { ...baseWhere, isBookmark: true },
         orderBy: { tanggalWaktu: 'desc' },
-        include: { aset: true, kategori: true, user: true },
+        include: { aset: true, kategori: true, user: true, asetTujuan: true },
       })
       return NextResponse.json({ view: 'bookmark', transactions: txs })
     }
 
-    // Summary view
     if (view === 'summary') {
       const income = await db.transaksi.aggregate({
         _sum: { nominal: true },
@@ -58,24 +56,21 @@ export async function GET(req: NextRequest) {
       })
 
       return NextResponse.json({
-        view: 'summary',
-        periode: bulan,
+        view: 'summary', periode: bulan,
         totalIncome: income._sum.nominal || 0,
         totalExpense: expense._sum.nominal || 0,
         categoryBreakdown: catBreakdown.map(c => ({
-          kategoriId: c.kategoriId,
-          nominal: c._sum.nominal || 0,
+          kategoriId: c.kategoriId, nominal: c._sum.nominal || 0,
           ...(catMap[c.kategoriId!] || {}),
         })),
         budgetProgress,
       })
     }
 
-    // Daily, Calendar, Monthly views
     const transactions = await db.transaksi.findMany({
       where: baseWhere,
       orderBy: { tanggalWaktu: 'desc' },
-      include: { aset: true, kategori: true, user: true },
+      include: { aset: true, kategori: true, user: true, asetTujuan: true },
     })
 
     if (view === 'daily') {
@@ -101,15 +96,13 @@ export async function GET(req: NextRequest) {
         calMap[day].push(tx)
       }
       const calDays = Object.entries(calMap).map(([day, txs]) => ({
-        day: parseInt(day),
-        transactions: txs,
+        day: parseInt(day), transactions: txs,
         totalExpense: txs.filter(t => t.tipe === 'Pengeluaran').reduce((s, t) => s + t.nominal, 0),
         totalIncome: txs.filter(t => t.tipe === 'Pemasukan').reduce((s, t) => s + t.nominal, 0),
       }))
       return NextResponse.json({ view: 'calendar', periode: bulan, days: calDays })
     }
 
-    // Default: return flat list
     return NextResponse.json({ view, periode: bulan, transactions })
   } catch (error) {
     console.error('Transaksi GET error:', error)
@@ -122,6 +115,50 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { tanggalWaktu, tipe, asetId, asetTujuanId, kategoriId, nominal, deskripsi, catatan, dicatatOleh, sumberInput, statusReview } = body
 
+    // ===== TRANSFER: 1 record, update both asset saldo =====
+    if (tipe === 'Transfer' && asetTujuanId) {
+      const [sourceAset, destAset] = await Promise.all([
+        db.aset.findUnique({ where: { id: asetId } }),
+        db.aset.findUnique({ where: { id: asetTujuanId } }),
+      ])
+      if (!sourceAset || !destAset) {
+        return NextResponse.json({ error: 'Aset sumber atau tujuan tidak ditemukan' }, { status: 400 })
+      }
+      if (sourceAset.saldoBerjalan < nominal) {
+        return NextResponse.json({ error: 'Saldo aset sumber tidak mencukupi' }, { status: 400 })
+      }
+
+      const tx = await db.transaksi.create({
+        data: {
+          tanggalWaktu: new Date(tanggalWaktu),
+          tipe: 'Transfer',
+          asetId,
+          asetTujuanId,
+          kategoriId: null,
+          nominal,
+          deskripsi,
+          catatan: catatan || `Transfer: ${sourceAset.namaAset} → ${destAset.namaAset}`,
+          dicatatOleh,
+          sumberInput: 'Transfer',
+          statusReview: 'Terverifikasi',
+        },
+        include: { aset: true, asetTujuan: true, user: true },
+      })
+
+      // Update saldo: kurangi sumber, tambah tujuan
+      await db.aset.update({
+        where: { id: asetId },
+        data: { saldoBerjalan: { decrement: nominal } },
+      })
+      await db.aset.update({
+        where: { id: asetTujuanId },
+        data: { saldoBerjalan: { increment: nominal } },
+      })
+
+      return NextResponse.json(tx, { status: 201 })
+    }
+
+    // ===== NORMAL: single transaction =====
     const tx = await db.transaksi.create({
       data: {
         tanggalWaktu: new Date(tanggalWaktu),
@@ -145,14 +182,6 @@ export async function POST(req: NextRequest) {
       where: { id: asetId },
       data: { saldoBerjalan: { increment: nominal * multiplier } },
     })
-
-    // If transfer, also update destination
-    if (tipe === 'Transfer' && asetTujuanId) {
-      await db.aset.update({
-        where: { id: asetTujuanId },
-        data: { saldoBerjalan: { increment: nominal } },
-      })
-    }
 
     return NextResponse.json(tx, { status: 201 })
   } catch (error) {
