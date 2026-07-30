@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { CalendarDays, List, BarChart3, Bookmark, ChevronLeft, ChevronRight, BookmarkIcon, X, Filter, Trash2, Edit3 } from 'lucide-react'
+import { CalendarDays, List, BarChart3, Bookmark, ChevronLeft, ChevronRight, BookmarkIcon, X, Filter, Trash2, Edit3, ArrowLeftRight } from 'lucide-react'
 import { formatRupiah, formatDate, getDayName, getMonthName, changePeriode, OWNER_BG_COLORS, getPercentage, formatTime } from '@/lib/format'
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 import { AlertAlertDialog } from './alert-dialog'
@@ -371,10 +371,11 @@ function BookmarkView({ data, onBookmark, onEdit, onDelete }: any) {
 }
 
 function TxRow({ tx, onBookmark, onEdit, onDelete }: any) {
+  const isTransfer = tx.sumberInput === 'Transfer'
   return (
     <div className="flex items-center gap-3 md:gap-4 px-3 md:px-4 py-3 md:py-3.5 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
       <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-gray-50 flex items-center justify-center text-base md:text-lg flex-shrink-0">
-        {tx.kategori?.icon || '📦'}
+        {isTransfer ? '🔄' : (tx.kategori?.icon || '📦')}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-800 truncate">{tx.deskripsi}</p>
@@ -382,22 +383,33 @@ function TxRow({ tx, onBookmark, onEdit, onDelete }: any) {
           <span className="text-xs text-gray-400">{formatTime(tx.tanggalWaktu)}</span>
           <span className="text-xs text-gray-300">·</span>
           <span className="text-xs text-gray-400">{tx.aset?.namaAset}</span>
+          {isTransfer && tx.asetTujuan && (
+            <>
+              <ArrowLeftRight className="w-3 h-3 text-blue-500" />
+              <span className="text-xs text-blue-500 font-medium">{tx.asetTujuan.namaAset}</span>
+            </>
+          )}
           <Badge variant="secondary" className={`text-[10px] px-2 py-0 h-5 ${OWNER_BG_COLORS[tx.user?.nama || 'Bersama']}`}>
             {tx.user?.nama || 'Bersama'}
           </Badge>
         </div>
       </div>
       <div className="text-right flex-shrink-0 flex items-center gap-2">
-        <span className={`text-sm font-semibold ${tx.tipe === 'Pemasukan' ? 'text-emerald-600' : 'text-gray-900'}`}>
-          {tx.tipe === 'Pemasukan' ? '+' : '-'}{formatRupiah(tx.nominal)}
+        <span className={`text-sm font-semibold ${
+          isTransfer ? 'text-blue-600' :
+          tx.tipe === 'Pemasukan' ? 'text-emerald-600' : 'text-gray-900'
+        }`}>
+          {isTransfer ? formatRupiah(tx.nominal) : `${tx.tipe === 'Pemasukan' ? '+' : '-'}${formatRupiah(tx.nominal)}`}
         </span>
         <div className="flex flex-col gap-0.5">
           <button onClick={() => onBookmark(tx.id, tx.isBookmark)} className="p-1 hover:bg-gray-100 rounded">
             <BookmarkIcon className={`w-3.5 h-3.5 ${tx.isBookmark ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}`} />
           </button>
-          {tx.sumberInput === 'AI' && (
+          {isTransfer ? (
+            <span className="text-[8px] text-blue-500 font-medium bg-blue-50 px-1.5 rounded text-center">Transfer</span>
+          ) : tx.sumberInput === 'AI' ? (
             <span className="text-[8px] text-purple-500 font-medium bg-purple-50 px-1.5 rounded text-center">AI</span>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
