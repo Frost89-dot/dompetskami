@@ -192,84 +192,83 @@ export function FabForm() {
   const filteredKategories = kategories.filter(k => k.tipe === tipe)
   const filteredTransferAsets = asets.filter(a => a.id !== transferFrom)
 
-  // ==================== TRANSFER DIALOG ====================
+  // ==================== RENDER ALL DIALOGS ====================
   return (
-    <Dialog open={fabFormType === 'transfer'} onOpenChange={handleFormClose}>
-      <DialogContent className='max-w-sm'>
-        <DialogHeader>
-          <DialogTitle className='flex items-center gap-2'>
-            <ArrowLeftRight className='w-4 h-4 text-blue-600' />
-            Transfer Antar Aset
-          </DialogTitle>
-        </DialogHeader>
-        <div className='space-y-4'>
-          <div className='grid grid-cols-2 gap-3'>
-            <div>
-              <Label className='text-xs'>Tanggal</Label>
-              <Input type='date' value={transferDate} onChange={e => setTransferDate(e.target.value)} className='mt-1' />
-            </div>
-            <div>
-              <Label className='text-xs'>Nominal (Rp)</Label>
-              <Input type='number' value={transferNominal} onChange={e => setTransferNominal(e.target.value)} placeholder='0' className='mt-1 text-lg font-bold' />
-            </div>
-          </div>
-
-          <div>
-            <Label className='text-xs'>Dari Aset (Sumber) *</Label>
-            <Select value={transferFrom} onValueChange={setTransferFrom}>
-              <SelectTrigger className='mt-1'><SelectValue placeholder='Pilih aset sumber' /></SelectTrigger>
-              <SelectContent>
-                {asets.map(a => <SelectItem key={a.id} value={a.id}>{a.icon} {a.namaAset}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className='flex justify-center'>
-            <div className='w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center'>
+    <>
+      {/* TRANSFER DIALOG */}
+      <Dialog open={fabFormType === 'transfer'} onOpenChange={handleFormClose}>
+        <DialogContent className='max-w-sm'>
+          <DialogHeader>
+            <DialogTitle className='flex items-center gap-2'>
               <ArrowLeftRight className='w-4 h-4 text-blue-600' />
+              Transfer Antar Aset
+            </DialogTitle>
+          </DialogHeader>
+          <div className='space-y-4'>
+            <div className='grid grid-cols-2 gap-3'>
+              <div>
+                <Label className='text-xs'>Tanggal</Label>
+                <Input type='date' value={transferDate} onChange={e => setTransferDate(e.target.value)} className='mt-1' />
+              </div>
+              <div>
+                <Label className='text-xs'>Nominal (Rp)</Label>
+                <Input type='number' value={transferNominal} onChange={e => setTransferNominal(e.target.value)} placeholder='0' className='mt-1 text-lg font-bold' />
+              </div>
             </div>
-          </div>
 
-          <div>
-            <Label className='text-xs'>Ke Aset (Tujuan) *</Label>
-            <Select value={transferTo} onValueChange={setTransferTo}>
-              <SelectTrigger className='mt-1'><SelectValue placeholder='Pilih aset tujuan' /></SelectTrigger>
-              <SelectContent>
-                {filteredTransferAsets.map(a => <SelectItem key={a.id} value={a.id}>{a.icon} {a.namaAset}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label className='text-xs'>Keterangan *</Label>
-            <Input value={transferDesc} onChange={e => setTransferDesc(e.target.value)} placeholder='Contoh: Top up dari BCA ke GoPay' className='mt-1' />
-          </div>
-
-          {transferFrom && transferTo && transferNominal && (
-            <div className='bg-blue-50 rounded-xl p-3 text-xs text-blue-700'>
-              <span className='font-medium'>Ringkasan:</span>{' '}
-              {asets.find(a => a.id === transferFrom)?.icon}{' '}
-              {asets.find(a => a.id === transferFrom)?.namaAset} →{' '}
-              {asets.find(a => a.id === transferTo)?.icon}{' '}
-              {asets.find(a => a.id === transferTo)?.namaAset}{' '}
-              <span className='font-semibold'>{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(parseFloat(transferNominal) || 0)}</span>
+            <div>
+              <Label className='text-xs'>Dari Aset (Sumber) *</Label>
+              <Select value={transferFrom} onValueChange={setTransferFrom}>
+                <SelectTrigger className='mt-1'><SelectValue placeholder='Pilih aset sumber' /></SelectTrigger>
+                <SelectContent>
+                  {asets.map(a => <SelectItem key={a.id} value={a.id}>{a.icon} {a.namaAset}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant='ghost' onClick={() => handleFormClose(false)}>Batal</Button>
-          <Button onClick={handleTransferSubmit} disabled={transferSubmitting || !transferFrom || !transferTo || !transferNominal || !transferDesc} className='bg-blue-600 hover:bg-blue-700'>
-            {transferSubmitting ? <Loader2 className='w-4 h-4 animate-spin mr-1' /> : <Check className='w-4 h-4 mr-1' />}
-            Transfer
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
 
-  // ==================== SCAN DIALOG ====================
-  if (fabFormType === 'scan') {
-    return (
+            <div className='flex justify-center'>
+              <div className='w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center'>
+                <ArrowLeftRight className='w-4 h-4 text-blue-600' />
+              </div>
+            </div>
+
+            <div>
+              <Label className='text-xs'>Ke Aset (Tujuan) *</Label>
+              <Select value={transferTo} onValueChange={setTransferTo}>
+                <SelectTrigger className='mt-1'><SelectValue placeholder='Pilih aset tujuan' /></SelectTrigger>
+                <SelectContent>
+                  {filteredTransferAsets.map(a => <SelectItem key={a.id} value={a.id}>{a.icon} {a.namaAset}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className='text-xs'>Keterangan *</Label>
+              <Input value={transferDesc} onChange={e => setTransferDesc(e.target.value)} placeholder='Contoh: Top up dari BCA ke GoPay' className='mt-1' />
+            </div>
+
+            {transferFrom && transferTo && transferNominal && (
+              <div className='bg-blue-50 rounded-xl p-3 text-xs text-blue-700'>
+                <span className='font-medium'>Ringkasan:</span>{' '}
+                {asets.find(a => a.id === transferFrom)?.icon}{' '}
+                {asets.find(a => a.id === transferFrom)?.namaAset} →{' '}
+                {asets.find(a => a.id === transferTo)?.icon}{' '}
+                {asets.find(a => a.id === transferTo)?.namaAset}{' '}
+                <span className='font-semibold'>{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(parseFloat(transferNominal) || 0)}</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant='ghost' onClick={() => handleFormClose(false)}>Batal</Button>
+            <Button onClick={handleTransferSubmit} disabled={transferSubmitting || !transferFrom || !transferTo || !transferNominal || !transferDesc} className='bg-blue-600 hover:bg-blue-700'>
+              {transferSubmitting ? <Loader2 className='w-4 h-4 animate-spin mr-1' /> : <Check className='w-4 h-4 mr-1' />}
+              Transfer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* SCAN DIALOG */}
       <Dialog open={fabFormType === 'scan' && !scanStatus} onOpenChange={handleFormClose}>
         <DialogContent className='max-w-md max-h-[85vh] overflow-y-auto'>
           <DialogHeader>
@@ -298,101 +297,99 @@ export function FabForm() {
           </div>
         </DialogContent>
       </Dialog>
-    )
-  }
 
-  // ==================== MANUAL DIALOG ====================
-  return (
-    <Dialog open={fabFormType === 'manual' || (fabFormType === 'scan' && scanStatus === 'needs_review')} onOpenChange={handleFormClose}>
-      <DialogContent className='max-w-md max-h-[85vh] overflow-y-auto'>
-        <DialogHeader>
-          <DialogTitle className='flex items-center gap-2'>
-            {fabFormType === 'scan' ? <Camera className='w-4 h-4' /> : <Pencil className='w-4 h-4' />}
-            {fabFormType === 'scan' ? 'Review Hasil Scan' : 'Input Manual'}
-          </DialogTitle>
-        </DialogHeader>
+      {/* MANUAL & REVIEW DIALOG */}
+      <Dialog open={fabFormType === 'manual' || (fabFormType === 'scan' && scanStatus === 'needs_review')} onOpenChange={handleFormClose}>
+        <DialogContent className='max-w-md max-h-[85vh] overflow-y-auto'>
+          <DialogHeader>
+            <DialogTitle className='flex items-center gap-2'>
+              {fabFormType === 'scan' ? <Camera className='w-4 h-4' /> : <Pencil className='w-4 h-4' />}
+              {fabFormType === 'scan' ? 'Review Hasil Scan' : 'Input Manual'}
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className='space-y-4'>
-          {/* Scan result banner */}
-          {scanResult && scanStatus === 'needs_review' && (
-            <div className='bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2'>
-              <div className='w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5'>
-                <Camera className='w-3 h-3 text-amber-600' />
+          <div className='space-y-4'>
+            {/* Scan result banner */}
+            {scanResult && scanStatus === 'needs_review' && (
+              <div className='bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2'>
+                <div className='w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5'>
+                  <Camera className='w-3 h-3 text-amber-600' />
+                </div>
+                <div className='flex-1'>
+                  <p className='text-xs font-medium text-amber-800'>Hasil Scan AI</p>
+                  <p className='text-[10px] text-amber-600 mt-0.5'>Data diekstrak otomatis. Silakan periksa dan konfirmasi.</p>
+                  {scanResult.namaToko && <p className='text-[10px] text-amber-700 mt-1 font-medium'>Toko: {scanResult.namaToko}</p>}
+                </div>
               </div>
-              <div className='flex-1'>
-                <p className='text-xs font-medium text-amber-800'>Hasil Scan AI</p>
-                <p className='text-[10px] text-amber-600 mt-0.5'>Data diekstrak otomatis. Silakan periksa dan konfirmasi.</p>
-                {scanResult.namaToko && <p className='text-[10px] text-amber-700 mt-1 font-medium'>Toko: {scanResult.namaToko}</p>}
+            )}
+
+            {/* Type toggle */}
+            <div className='flex gap-2'>
+              <Button
+                onClick={() => { setTipe('Pengeluaran'); setKategoriId('') }}
+                variant={tipe === 'Pengeluaran' ? 'default' : 'outline'}
+                className={`flex-1 ${tipe === 'Pengeluaran' ? 'bg-red-500 hover:bg-red-600' : ''}`}
+                size='sm'
+              >Pengeluaran</Button>
+              <Button
+                onClick={() => { setTipe('Pemasukan'); setKategoriId('') }}
+                variant={tipe === 'Pemasukan' ? 'default' : 'outline'}
+                className={`flex-1 ${tipe === 'Pemasukan' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
+                size='sm'
+              >Pemasukan</Button>
+            </div>
+
+            <div className='grid grid-cols-2 gap-3'>
+              <div>
+                <Label className='text-xs'>Tanggal</Label>
+                <Input type='date' value={tanggal} onChange={e => setTanggal(e.target.value)} className='mt-1' />
+              </div>
+              <div>
+                <Label className='text-xs'>Aset/Rekening</Label>
+                <Select value={asetId} onValueChange={setAsetId}>
+                  <SelectTrigger className='mt-1'><SelectValue placeholder='Pilih aset' /></SelectTrigger>
+                  <SelectContent>
+                    {asets.map(a => <SelectItem key={a.id} value={a.id}>{a.icon} {a.namaAset}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          )}
 
-          {/* Type toggle */}
-          <div className='flex gap-2'>
-            <Button
-              onClick={() => { setTipe('Pengeluaran'); setKategoriId('') }}
-              variant={tipe === 'Pengeluaran' ? 'default' : 'outline'}
-              className={`flex-1 ${tipe === 'Pengeluaran' ? 'bg-red-500 hover:bg-red-600' : ''}`}
-              size='sm'
-            >Pengeluaran</Button>
-            <Button
-              onClick={() => { setTipe('Pemasukan'); setKategoriId('') }}
-              variant={tipe === 'Pemasukan' ? 'default' : 'outline'}
-              className={`flex-1 ${tipe === 'Pemasukan' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
-              size='sm'
-            >Pemasukan</Button>
-          </div>
-
-          <div className='grid grid-cols-2 gap-3'>
             <div>
-              <Label className='text-xs'>Tanggal</Label>
-              <Input type='date' value={tanggal} onChange={e => setTanggal(e.target.value)} className='mt-1' />
-            </div>
-            <div>
-              <Label className='text-xs'>Aset/Rekening</Label>
-              <Select value={asetId} onValueChange={setAsetId}>
-                <SelectTrigger className='mt-1'><SelectValue placeholder='Pilih aset' /></SelectTrigger>
+              <Label className='text-xs'>Kategori</Label>
+              <Select value={kategoriId} onValueChange={setKategoriId}>
+                <SelectTrigger className='mt-1'><SelectValue placeholder='Pilih kategori' /></SelectTrigger>
                 <SelectContent>
-                  {asets.map(a => <SelectItem key={a.id} value={a.id}>{a.icon} {a.namaAset}</SelectItem>)}
+                  {filteredKategories.map(k => <SelectItem key={k.id} value={k.id}>{k.icon} {k.namaKategori}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div>
-            <Label className='text-xs'>Kategori</Label>
-            <Select value={kategoriId} onValueChange={setKategoriId}>
-              <SelectTrigger className='mt-1'><SelectValue placeholder='Pilih kategori' /></SelectTrigger>
-              <SelectContent>
-                {filteredKategories.map(k => <SelectItem key={k.id} value={k.id}>{k.icon} {k.namaKategori}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+            <div>
+              <Label className='text-xs'>Nominal (Rp)</Label>
+              <Input type='number' value={nominal} onChange={e => setNominal(e.target.value)} placeholder='0' className='mt-1 text-lg font-bold' />
+            </div>
 
-          <div>
-            <Label className='text-xs'>Nominal (Rp)</Label>
-            <Input type='number' value={nominal} onChange={e => setNominal(e.target.value)} placeholder='0' className='mt-1 text-lg font-bold' />
-          </div>
+            <div>
+              <Label className='text-xs'>Deskripsi *</Label>
+              <Input value={deskripsi} onChange={e => setDeskripsi(e.target.value)} placeholder='Contoh: Belanja sayur di pasar' className='mt-1' />
+            </div>
 
-          <div>
-            <Label className='text-xs'>Deskripsi *</Label>
-            <Input value={deskripsi} onChange={e => setDeskripsi(e.target.value)} placeholder='Contoh: Belanja sayur di pasar' className='mt-1' />
-          </div>
+            <div>
+              <Label className='text-xs'>Catatan (opsional)</Label>
+              <Textarea value={catatan} onChange={e => setCatatan(e.target.value)} placeholder='Tambah catatan...' className='mt-1' rows={2} />
+            </div>
 
-          <div>
-            <Label className='text-xs'>Catatan (opsional)</Label>
-            <Textarea value={catatan} onChange={e => setCatatan(e.target.value)} placeholder='Tambah catatan...' className='mt-1' rows={2} />
+            <div className='flex gap-2'>
+              <Button variant='ghost' onClick={() => handleFormClose(false)} className='flex-1'>Batal</Button>
+              <Button onClick={handleManualSubmit} disabled={submitting || !deskripsi || !nominal} className='flex-1 bg-blue-600 hover:bg-blue-700'>
+                {submitting ? <Loader2 className='w-4 h-4 animate-spin mr-1' /> : <Check className='w-4 h-4 mr-1' />}
+                Simpan
+              </Button>
+            </div>
           </div>
-
-          <div className='flex gap-2'>
-            <Button variant='ghost' onClick={() => handleFormClose(false)} className='flex-1'>Batal</Button>
-            <Button onClick={handleManualSubmit} disabled={submitting || !deskripsi || !nominal} className='flex-1 bg-blue-600 hover:bg-blue-700'>
-              {submitting ? <Loader2 className='w-4 h-4 animate-spin mr-1' /> : <Check className='w-4 h-4 mr-1' />}
-              Simpan
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
