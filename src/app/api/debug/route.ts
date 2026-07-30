@@ -1,22 +1,33 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
 
 export async function GET() {
+  const dbUrl = process.env.DATABASE_URL || ''
+
   try {
-    // Test connection
-    const kategori = await db.kategori.findMany()
-    const aset = await db.aset.findMany()
+    const { PrismaLibSQL } = await import('@prisma/adapter-libsql')
+    const { createClient } = await import('@libsql/client')
+    const { PrismaClient } = await import('@prisma/client')
+
+    const libsql = createClient({
+      url: dbUrl,
+      authToken: process.env.TURSO_AUTH_TOKEN || undefined,
+    })
+    const adapter = new PrismaLibSQL(libsql)
+    const client = new PrismaClient({ adapter })
+
+    const kategori = await client.kategori.findMany()
+
     return NextResponse.json({
       status: 'OK',
+      dbUrl_prefix: dbUrl.substring(0, 20),
       kategori_count: kategori.length,
-      aset_count: aset.length,
     })
   } catch (err: any) {
     return NextResponse.json({
       status: 'ERROR',
       message: err.message,
-      code: err.code,
-      meta: err.meta,
+      dbUrl_value: dbUrl,
+      dbUrl_type: typeof dbUrl,
     }, { status: 500 })
   }
 }
