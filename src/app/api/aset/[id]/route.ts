@@ -93,3 +93,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Failed to adjust saldo' }, { status: 500 })
   }
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params
+    // Soft delete: set statusAktif to false
+    await db.aset.update({
+      where: { id },
+      data: { statusAktif: false },
+    })
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to delete asset' }, { status: 500 })
+  }
+}
