@@ -3,6 +3,7 @@ import { create } from 'zustand'
 export type TabType = 'beranda' | 'transaksi' | 'aset' | 'lainnya'
 export type TxViewType = 'daily' | 'calendar' | 'monthly' | 'summary' | 'bookmark'
 export type LainnyaSubView = 'statistics' | 'budget' | 'memo' | 'settings' | null
+export type FabFormType = 'manual' | 'scan' | 'transfer' | null
 
 interface AppState {
   activeTab: TabType
@@ -13,10 +14,12 @@ interface AppState {
   setLainnyaView: (v: LainnyaSubView) => void
   periode: string
   setPeriode: (p: string) => void
-  fabOpen: boolean
-  setFabOpen: (v: boolean) => void
-  fabMode: 'manual' | 'scan'
-  setFabMode: (v: 'manual' | 'scan') => void
+  // FAB menu (the popup with options)
+  fabMenuOpen: boolean
+  setFabMenuOpen: (v: boolean) => void
+  // Form dialog (the actual input form)
+  fabFormType: FabFormType
+  setFabFormType: (v: FabFormType) => void
   currentUser: string
   setCurrentUser: (u: string) => void
   selectedAsetId: string | null
@@ -41,10 +44,10 @@ export const useAppStore = create<AppState>((set) => ({
     return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`
   })(),
   setPeriode: (p) => set({ periode: p }),
-  fabOpen: false,
-  setFabOpen: (v) => set({ fabOpen: v }),
-  fabMode: 'manual',
-  setFabMode: (v) => set({ fabMode: v }),
+  fabMenuOpen: false,
+  setFabMenuOpen: (v) => set({ fabMenuOpen: v }),
+  fabFormType: null,
+  setFabFormType: (v) => set({ fabFormType: v }),
   currentUser: 'suami@dompetkami.com',
   setCurrentUser: (u) => set({ currentUser: u }),
   selectedAsetId: null,
