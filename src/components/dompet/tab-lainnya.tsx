@@ -35,9 +35,9 @@ export function TabLainnya() {
   if (lainnyaView === 'settings') return <SettingsView />
 
   return (
-    <ScrollArea className='h-[calc(100vh-8rem)]'>
-      <div className='p-4 pb-28 space-y-3 tab-content'>
-        <h2 className='text-base font-bold text-gray-900'>Lainnya</h2>
+    <ScrollArea className='h-[calc(100vh-2rem)] md:h-screen'>
+      <div className='p-4 md:p-6 pb-28 md:pb-8 space-y-3 tab-content'>
+        <h2 className='text-lg font-bold text-gray-900'>Lainnya</h2>
         {MENU_ITEMS.map(item => (
           <button
             key={item.id}
@@ -110,7 +110,7 @@ function StatisticsView() {
   })
 
   return (
-    <div className='flex flex-col h-[calc(100vh-8rem)]'>
+    <div className='flex flex-col h-[calc(100vh-2rem)] md:h-screen'>
       <div className='px-4 pt-2 pb-3 bg-white/80 backdrop-blur-md sticky top-0 z-10'>
         <div className='flex items-center gap-2 mb-2'>
           <button onClick={() => setLainnyaView(null)} className='p-1 hover:bg-gray-100 rounded-lg'>
@@ -135,7 +135,7 @@ function StatisticsView() {
         </div>
       </div>
 
-      <ScrollArea className='flex-1 pb-24'>
+      <ScrollArea className='flex-1 pb-24 md:pb-8'>
         <div className='p-4 space-y-4 tab-content'>
           {loading ? (
             <div className='space-y-3'><Skeleton className='h-48 rounded-2xl' /><Skeleton className='h-48 rounded-2xl' /></div>
@@ -280,7 +280,7 @@ function BudgetView() {
   const totalUsed = budgets.reduce((s, b) => s + b.nominalTerpakai, 0)
 
   return (
-    <div className='flex flex-col h-[calc(100vh-8rem)]'>
+    <div className='flex flex-col h-[calc(100vh-2rem)] md:h-screen'>
       <div className='px-4 pt-2 pb-3 bg-white/80 backdrop-blur-md sticky top-0 z-10'>
         <div className='flex items-center gap-2 mb-2'>
           <button onClick={() => setLainnyaView(null)} className='p-1 hover:bg-gray-100 rounded-lg'>
@@ -304,7 +304,7 @@ function BudgetView() {
         </div>
       </div>
 
-      <ScrollArea className='flex-1 pb-24'>
+      <ScrollArea className='flex-1 pb-24 md:pb-8'>
         <div className='p-4 space-y-4 tab-content'>
           <Card className='border-0 shadow-sm rounded-2xl'>
             <CardContent className='p-4'>
@@ -461,7 +461,7 @@ function MemoView() {
   }
 
   return (
-    <div className='flex flex-col h-[calc(100vh-8rem)]'>
+    <div className='flex flex-col h-[calc(100vh-2rem)] md:h-screen'>
       <div className='px-4 pt-2 pb-3 bg-white/80 backdrop-blur-md sticky top-0 z-10'>
         <div className='flex items-center justify-between'>
           <div className='flex items-center gap-2'>
@@ -477,7 +477,7 @@ function MemoView() {
         </div>
       </div>
 
-      <ScrollArea className='flex-1 pb-24'>
+      <ScrollArea className='flex-1 pb-24 md:pb-8'>
         <div className='p-4 space-y-3 tab-content'>
           {loading ? (
             <div className='space-y-2'><Skeleton className='h-16 rounded-xl' /><Skeleton className='h-16 rounded-xl' /></div>
@@ -554,7 +554,7 @@ function SettingsView() {
   const { setLainnyaView, currentUser, setCurrentUser } = useAppStore()
 
   return (
-    <div className='flex flex-col h-[calc(100vh-8rem)]'>
+    <div className='flex flex-col h-[calc(100vh-2rem)] md:h-screen'>
       <div className='px-4 pt-2 pb-3 bg-white/80 backdrop-blur-md sticky top-0 z-10'>
         <div className='flex items-center gap-2'>
           <button onClick={() => setLainnyaView(null)} className='p-1 hover:bg-gray-100 rounded-lg'>
@@ -564,7 +564,7 @@ function SettingsView() {
         </div>
       </div>
 
-      <ScrollArea className='flex-1 pb-24'>
+      <ScrollArea className='flex-1 pb-24 md:pb-8'>
         <div className='p-4 space-y-4 tab-content'>
           <Card className='border-0 shadow-sm rounded-2xl'>
             <CardContent className='p-4'>
