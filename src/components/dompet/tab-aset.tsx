@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -44,8 +44,12 @@ const EMPTY_FORM: AsetFormData = {
 }
 
 export function TabAset() {
-  const { selectedAsetId, setSelectedAsetId, periode, refreshKey, triggerRefresh } = useAppStore()
+  const { selectedAsetId, setSelectedAsetId, periode, currentUser, refreshKey, triggerRefresh } = useAppStore()
   const { toast } = useToast()
+  
+  // AbortController untuk cleanup fetch requests
+  const abortControllerRef = useRef<AbortController | null>(null)
+  
   const [grouped, setGrouped] = useState<Record<string, any[]>>({})
   const [all, setAll] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -65,62 +69,132 @@ export function TabAset() {
   // Delete
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
+  // Cleanup function untuk abort fetch requests
+  const cleanupFetch = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+  }
+
+  useEffect(() => {
+    return () => cleanupFetch()
+  }, [])
+
   const loadData = useCallback(async () => {
+    cleanupFetch()
+    abortControllerRef.current = new AbortController()
+    
     setLoading(true)
     try {
-      const res = await fetch('/api/aset')
+      const res = await fetch('/api/aset', {
+        signal: abortControllerRef.current.signal
+      })
+      if (!res.ok) throw new Error('Failed to fetch assets')
       const json = await res.json()
       setGrouped(json.grouped || {})
       setAll(json.all || [])
-    } catch (e) { console.error(e) }
-    setLoading(false)
-  }, [refreshKey])
+    } catch (e: any) {
+      if (e.name !== 'AbortError') {
+        console.error('Error loading assets:', e)
+        toast({ 
+          title: 'Gagal memuat data aset', 
+          description: 'Silakan coba lagi',
+          variant: 'destructive' 
+        })
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
 
-  useEffect(() => { loadData() }, [loadData])
+  useEffect(() => { 
+    loadData() 
+  }, [loadData, refreshKey])
 
   const openDetail = async (id: string) => {
     setSelectedAsetId(id)
     setDetailLoading(true)
     try {
       const res = await fetch(`/api/aset/${id}?view=daily&bulan=${periode}`)
+      if (!res.ok) throw new Error('Failed to fetch detail')
       const json = await res.json()
       setDetail(json)
       setDetailPeriode(periode)
-    } catch (e) { console.error(e) }
-    setDetailLoading(false)
+    } catch (e) {
+      console.error('Error loading detail:', e)
+      toast({
+        title: 'Gagal memuat detail aset',
+        variant: 'destructive'
+      })
+    } finally {
+      setDetailLoading(false)
+    }
   }
 
   const loadDetail = useCallback(async () => {
     if (!selectedAsetId) return
+    
+    cleanupFetch()
+    abortControllerRef.current = new AbortController()
+    
     setDetailLoading(true)
     try {
-      const res = await fetch(`/api/aset/${selectedAsetId}?view=daily&bulan=${detailPeriode}`)
+      const res = await fetch(
+        `/api/aset/${selectedAsetId}?view=daily&bulan=${detailPeriode}`,
+        { signal: abortControllerRef.current.signal }
+      )
+      if (!res.ok) throw new Error('Failed to fetch detail')
       const json = await res.json()
       setDetail(json)
-    } catch (e) { console.error(e) }
-    setDetailLoading(false)
-  }, [selectedAsetId, detailPeriode])
+    } catch (e: any) {
+      if (e.name !== 'AbortError') {
+        console.error('Error loading detail:', e)
+        toast({
+          title: 'Gagal memuat detail aset',
+          variant: 'destructive'
+        })
+      }
+    } finally {
+      setDetailLoading(false)
+    }
+  }, [selectedAsetId, detailPeriode, toast])
 
-  useEffect(() => { if (selectedAsetId) loadDetail() }, [loadDetail])
+  useEffect(() => {
+    if (selectedAsetId) {
+      loadDetail()
+    }
+  }, [selectedAsetId, detailPeriode, loadDetail])
 
   const handleAdjust = async () => {
     if (!selectedAsetId || !newSaldo) return
+    
     setAdjustLoading(true)
     try {
-      await fetch(`/api/aset/${selectedAsetId}`, {
+      const res = await fetch(`/api/aset/${selectedAsetId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ saldoBaru: parseFloat(newSaldo), dicatatOleh: 'suami@dompetkami.com' }),
+        body: JSON.stringify({ 
+          saldoBaru: parseFloat(newSaldo), 
+          dicatatOleh: currentUser || 'system@dompetkami.com'
+        }),
       })
+      
+      if (!res.ok) throw new Error('Failed to adjust balance')
+      
       toast({ title: 'Saldo berhasil disesuaikan' })
       setAdjustOpen(false)
       setNewSaldo('')
-      loadData()
-      loadDetail()
+      await Promise.all([loadData(), loadDetail()])
     } catch (e) {
-      toast({ title: 'Gagal menyesuaikan saldo', variant: 'destructive' })
+      console.error('Error adjusting balance:', e)
+      toast({ 
+        title: 'Gagal menyesuaikan saldo', 
+        description: 'Silakan coba lagi',
+        variant: 'destructive' 
+      })
+    } finally {
+      setAdjustLoading(false)
     }
-    setAdjustLoading(false)
   }
 
   const openCreate = () => {
@@ -149,58 +223,81 @@ export function TabAset() {
       toast({ title: 'Lengkapi nama aset dan grup', variant: 'destructive' })
       return
     }
+    
     setFormLoading(true)
     try {
+      const payload = {
+        ...formData,
+        saldoAwal: parseFloat(formData.saldoAwal) || 0,
+      }
+      
+      let res: Response
       if (formMode === 'create') {
-        const res = await fetch('/api/aset', {
+        res = await fetch('/api/aset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...formData,
-            saldoAwal: parseFloat(formData.saldoAwal) || 0,
-          }),
+          body: JSON.stringify(payload),
         })
-        if (res.ok) {
-          toast({ title: 'Aset berhasil ditambahkan' })
-          setFormOpen(false)
-          loadData()
-          triggerRefresh()
-        } else {
-          toast({ title: 'Gagal menambahkan aset', variant: 'destructive' })
-        }
       } else if (editingAsetId) {
-        const res = await fetch(`/api/aset/${editingAsetId}`, {
+        res = await fetch(`/api/aset/${editingAsetId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(payload),
         })
-        if (res.ok) {
-          toast({ title: 'Aset berhasil diperbarui' })
-          setFormOpen(false)
-          setEditingAsetId(null)
-          loadData()
-          if (detail?.aset?.id === editingAsetId) loadDetail()
-        } else {
-          toast({ title: 'Gagal memperbarui aset', variant: 'destructive' })
-        }
+      } else {
+        throw new Error('Invalid form mode')
       }
-    } catch (e) {
-      toast({ title: 'Gagal menyimpan aset', variant: 'destructive' })
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to save asset')
+      }
+      
+      toast({ 
+        title: formMode === 'create' ? 'Aset berhasil ditambahkan' : 'Aset berhasil diperbarui' 
+      })
+      setFormOpen(false)
+      setEditingAsetId(null)
+      
+      await loadData()
+      triggerRefresh()
+      
+      if (editingAsetId && detail?.aset?.id === editingAsetId) {
+        await loadDetail()
+      }
+    } catch (e: any) {
+      console.error('Error saving asset:', e)
+      toast({ 
+        title: 'Gagal menyimpan aset', 
+        description: e.message || 'Silakan coba lagi',
+        variant: 'destructive' 
+      })
+    } finally {
+      setFormLoading(false)
     }
-    setFormLoading(false)
   }
 
   const handleDelete = async () => {
     if (!deleteId) return
+    
     try {
-      await fetch(`/api/aset/${deleteId}`, { method: 'DELETE' })
+      const res = await fetch(`/api/aset/${deleteId}`, { method: 'DELETE' })
+      
+      if (!res.ok) throw new Error('Failed to delete asset')
+      
       toast({ title: 'Aset dihapus' })
       setDeleteId(null)
       if (selectedAsetId === deleteId) setSelectedAsetId(null)
-      loadData()
+      
+      await loadData()
       triggerRefresh()
     } catch (e) {
-      toast({ title: 'Gagal menghapus aset', variant: 'destructive' })
+      console.error('Error deleting asset:', e)
+      toast({ 
+        title: 'Gagal menghapus aset', 
+        description: 'Silakan coba lagi',
+        variant: 'destructive' 
+      })
     }
   }
 
@@ -213,7 +310,11 @@ export function TabAset() {
         <div className='px-4 md:px-6 pt-4 md:pt-6 pb-3 bg-white/80 backdrop-blur-md sticky top-0 z-10'>
           <div className='flex items-center justify-between mb-3'>
             <div className='flex items-center gap-2'>
-              <button onClick={() => { setSelectedAsetId(null); setDetail(null) }} className='p-2 hover:bg-gray-100 rounded-xl transition-colors'>
+              <button 
+                onClick={() => { setSelectedAsetId(null); setDetail(null) }} 
+                className='p-2 hover:bg-gray-100 rounded-xl transition-colors'
+                aria-label='Kembali ke daftar aset'
+              >
                 <ChevronLeft className='w-5 h-5 text-gray-600' />
               </button>
               <span className='text-lg font-bold text-gray-900'>{detail.aset.icon} {detail.aset.namaAset}</span>
@@ -222,11 +323,16 @@ export function TabAset() {
               <button
                 onClick={() => openEdit(detail.aset)}
                 className='flex items-center gap-1.5 text-xs text-gray-500 font-medium hover:text-gray-700 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors'
+                aria-label='Edit aset'
               >
                 <Settings2 className='w-3.5 h-3.5' />
                 <span className='hidden sm:inline'>Edit</span>
               </button>
-              <button onClick={() => setDeleteId(detail.aset.id)} className='flex items-center gap-1.5 text-xs text-red-500 font-medium hover:text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors'>
+              <button 
+                onClick={() => setDeleteId(detail.aset.id)} 
+                className='flex items-center gap-1.5 text-xs text-red-500 font-medium hover:text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors'
+                aria-label='Hapus aset'
+              >
                 <Trash2 className='w-3.5 h-3.5' />
                 <span className='hidden sm:inline'>Hapus</span>
               </button>
@@ -234,15 +340,26 @@ export function TabAset() {
           </div>
           <div className='flex items-center justify-between'>
             <div className='flex items-center gap-2'>
-              <button onClick={() => setDetailPeriode(changePeriode(detailPeriode, -1))} className='p-1.5 hover:bg-gray-100 rounded-lg transition-colors'>
+              <button 
+                onClick={() => setDetailPeriode(changePeriode(detailPeriode, -1))} 
+                className='p-1.5 hover:bg-gray-100 rounded-lg transition-colors'
+                aria-label='Bulan sebelumnya'
+              >
                 <ChevronLeft className='w-4 h-4 text-gray-500' />
               </button>
               <span className='text-sm font-semibold text-gray-700 min-w-[140px] text-center'>{getMonthName(detailPeriode)}</span>
-              <button onClick={() => setDetailPeriode(changePeriode(detailPeriode, 1))} className='p-1.5 hover:bg-gray-100 rounded-lg transition-colors'>
+              <button 
+                onClick={() => setDetailPeriode(changePeriode(detailPeriode, 1))} 
+                className='p-1.5 hover:bg-gray-100 rounded-lg transition-colors'
+                aria-label='Bulan berikutnya'
+              >
                 <ChevronLeft className='w-4 h-4 text-gray-500 rotate-180' />
               </button>
             </div>
-            <button onClick={() => { setAdjustOpen(true); setNewSaldo(String(detail.aset.saldoBerjalan)) }} className='text-xs text-blue-600 font-medium bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition-colors'>
+            <button 
+              onClick={() => { setAdjustOpen(true); setNewSaldo(String(detail.aset.saldoBerjalan)) }} 
+              className='text-xs text-blue-600 font-medium bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition-colors'
+            >
               <Pencil className='w-3.5 h-3.5 inline mr-1' />Edit Saldo
             </button>
           </div>
@@ -275,7 +392,7 @@ export function TabAset() {
               </div>
             ) : (
               <Card className='border-0 shadow-sm rounded-xl overflow-hidden'>
-                {detail.transactions.length === 0 ? (
+                {(!detail.transactions || detail.transactions.length === 0) ? (
                   <div className='py-16 text-center text-gray-400 text-sm'>Tidak ada transaksi bulan ini</div>
                 ) : (
                   detail.transactions.map((tx: any) => (
@@ -318,7 +435,9 @@ export function TabAset() {
             </div>
             <DialogFooter>
               <Button variant='ghost' onClick={() => setAdjustOpen(false)}>Batal</Button>
-              <Button onClick={handleAdjust} disabled={adjustLoading} className='bg-blue-600 hover:bg-blue-700'>Simpan</Button>
+              <Button onClick={handleAdjust} disabled={adjustLoading || !newSaldo} className='bg-blue-600 hover:bg-blue-700'>
+                {adjustLoading ? 'Menyimpan...' : 'Simpan'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -334,11 +453,12 @@ export function TabAset() {
     )
   }
 
-  // Loading
+  // Loading state
   if (loading) {
     return (
       <div className='p-4 md:p-6 space-y-4'>
-        <Skeleton className='h-8 w-full rounded-xl' />
+        <Skeleton className='h-8 w-48 rounded-xl' />
+        <Skeleton className='h-28 w-full rounded-2xl' />
         <Skeleton className='h-28 w-full rounded-2xl' />
         <Skeleton className='h-28 w-full rounded-2xl' />
       </div>
@@ -357,6 +477,7 @@ export function TabAset() {
           <button
             onClick={openCreate}
             className='flex items-center gap-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl shadow-sm transition-colors'
+            aria-label='Tambah aset baru'
           >
             <Plus className='w-4 h-4' />
             <span className='hidden sm:inline'>Tambah Aset</span>
@@ -385,10 +506,11 @@ export function TabAset() {
                     <button
                       onClick={() => openDetail(aset.id)}
                       className='flex items-center gap-3 flex-1 min-w-0 text-left'
+                      aria-label={`Lihat detail ${aset.namaAset}`}
                     >
                       <div className='w-10 h-10 md:w-11 md:h-11 rounded-xl bg-blue-50 flex items-center justify-center text-lg md:text-xl flex-shrink-0'>{aset.icon}</div>
                       <div className='flex-1 min-w-0'>
-                        <p className='text-sm font-medium text-gray-800'>{aset.namaAset}</p>
+                        <p className='text-sm font-medium text-gray-800 truncate'>{aset.namaAset}</p>
                         <div className='flex items-center gap-2 mt-0.5'>
                           <span className='text-xs text-gray-400'>{aset.pemilik}</span>
                           {aset.visibilitas === 'Privat' && (
@@ -406,6 +528,7 @@ export function TabAset() {
                         onClick={(e) => { e.stopPropagation(); openEdit(aset) }}
                         className='p-2 hover:bg-gray-100 rounded-lg transition-colors'
                         title='Edit aset'
+                        aria-label='Edit aset'
                       >
                         <Pencil className='w-3.5 h-3.5 text-gray-400' />
                       </button>
@@ -413,6 +536,7 @@ export function TabAset() {
                         onClick={(e) => { e.stopPropagation(); setDeleteId(aset.id) }}
                         className='p-2 hover:bg-red-50 rounded-lg transition-colors'
                         title='Hapus aset'
+                        aria-label='Hapus aset'
                       >
                         <Trash2 className='w-3.5 h-3.5 text-gray-400 hover:text-red-500' />
                       </button>
@@ -443,8 +567,11 @@ export function TabAset() {
       </ScrollArea>
 
       {/* Create / Edit Dialog */}
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className='max-w-sm'>
+      <Dialog open={formOpen} onOpenChange={(open) => {
+        setFormOpen(open)
+        if (!open) setEditingAsetId(null)
+      }}>
+        <DialogContent className='max-w-sm max-h-[90vh] overflow-y-auto'>
           <DialogHeader>
             <DialogTitle>{formMode === 'create' ? 'Tambah Aset Baru' : 'Edit Aset'}</DialogTitle>
           </DialogHeader>
@@ -462,6 +589,8 @@ export function TabAset() {
                         ? 'bg-blue-100 ring-2 ring-blue-500 scale-110'
                         : 'bg-gray-50 hover:bg-gray-100'
                     }`}
+                    aria-label={`Pilih icon ${ic}`}
+                    aria-pressed={formData.icon === ic}
                   >
                     {ic}
                   </button>
@@ -476,6 +605,7 @@ export function TabAset() {
                 onChange={e => setFormData(f => ({ ...f, namaAset: e.target.value }))}
                 placeholder='Contoh: BCA, GoPay, Dompet'
                 className='mt-1'
+                autoFocus
               />
             </div>
 
@@ -535,7 +665,7 @@ export function TabAset() {
               disabled={formLoading || !formData.namaAset}
               className='bg-blue-600 hover:bg-blue-700'
             >
-              {formMode === 'create' ? 'Tambah' : 'Simpan'}
+              {formLoading ? 'Menyimpan...' : formMode === 'create' ? 'Tambah' : 'Simpan'}
             </Button>
           </DialogFooter>
         </DialogContent>
